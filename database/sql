@@ -1,0 +1,102 @@
+CREATE DATABASE db_evidencia;
+
+USE db_evidencia;
+GO
+
+CREATE TABLE zakaznici (
+    id INT PRIMARY KEY IDENTITY,
+    meno VARCHAR(255) NOT NULL,
+    priezvisko VARCHAR(255) NOT NULL,
+    nazov VARCHAR(255),
+    email VARCHAR(255) NOT NULL,
+    telefon VARCHAR(255) NOT NULL,
+    adresa TEXT NOT NULL
+);
+
+CREATE TABLE zakazky (
+    id INT PRIMARY KEY IDENTITY,
+    zakaznik_id INT NOT NULL,
+    datum_zakazky TIMESTAMP NOT NULL,
+    celkova_suma DECIMAL(10,2) NOT NULL,
+    stav VARCHAR(255) NOT NULL,
+    datum_vytvorenia TIMESTAMP NOT NULL,
+    FOREIGN KEY (zakaznik_id) REFERENCES zakaznici(id)
+);
+
+CREATE TABLE faktury (
+    id INT PRIMARY KEY IDENTITY,
+    zakazka_id INT NOT NULL,
+    cislo_faktury VARCHAR(255),
+    datum_vystavenia TIMESTAMP NOT NULL,
+    datum_splatnosti TIMESTAMP NOT NULL,
+    celkova_suma DECIMAL(10,2) NOT NULL,
+    stav VARCHAR(255) NOT NULL,
+    datum_vytvorenia TIMESTAMP NOT NULL,
+    FOREIGN KEY (zakazka_id) REFERENCES zakazky(id)
+);
+
+CREATE TABLE polozky_zakazky (
+    id INT PRIMARY KEY IDENTITY,
+    zakazka_id INT NOT NULL,
+    nazov_produktu VARCHAR(255) NOT NULL,
+    mnozstvo INT NOT NULL,
+    jednotkova_cena DECIMAL(10,2) NOT NULL,
+    celkova_cena DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (zakazka_id) REFERENCES zakazky(id)
+);
+
+CREATE TABLE platby (
+    id INT PRIMARY KEY IDENTITY,
+    faktura_id INT NOT NULL,
+    datum_platby TIMESTAMP NOT NULL,
+    suma DECIMAL(10,2) NOT NULL,
+    metoda VARCHAR(255) NOT NULL,
+    stav VARCHAR(255) NOT NULL,
+    FOREIGN KEY (faktura_id) REFERENCES faktury(id)
+);
+
+CREATE TABLE dodavatelia (
+    id INT PRIMARY KEY IDENTITY,
+    meno VARCHAR(255) NOT NULL,
+    kontakt VARCHAR(255) NOT NULL,
+    adresa TEXT NOT NULL
+);
+
+CREATE TABLE materialy (
+    id INT PRIMARY KEY IDENTITY,
+    nazov VARCHAR(255) NOT NULL,
+    dodavatel_id INT NOT NULL,
+    cena DECIMAL(10,2) NOT NULL,
+    mnozstvo INT NOT NULL,
+    FOREIGN KEY (dodavatel_id) REFERENCES dodavatelia(id)
+);
+
+CREATE TABLE sklad (
+    id INT PRIMARY KEY IDENTITY,
+    pocet_zamestnancov INT NOT NULL,
+    material_id INT NOT NULL,
+    aktualne_mnozstvo INT,
+    minimalne_mnozstvo INT,
+    FOREIGN KEY (material_id) REFERENCES materialy(id)
+);
+
+CREATE TABLE zamestnanci (
+    id INT PRIMARY KEY IDENTITY,
+    meno VARCHAR(255) NOT NULL,
+    priezvisko VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    telefon VARCHAR(255),
+    pozicia VARCHAR(255) NOT NULL,
+    sklad INT,
+    FOREIGN KEY (sklad) REFERENCES sklad(id)
+);
+
+CREATE TABLE priradenia_zakazok (
+    id INT PRIMARY KEY IDENTITY,
+    zamestnanec_id INT NOT NULL,
+    zakazka_id INT NOT NULL,
+    FOREIGN KEY (zamestnanec_id) REFERENCES zamestnanci(id),
+    FOREIGN KEY (zakazka_id) REFERENCES zakazky(id)
+);
+
+
