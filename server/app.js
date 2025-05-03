@@ -4,11 +4,13 @@ const express=  require("express");
 
 //nacitanie modulu ms databazy
 const sql = require('mssql')
+
 // modul ajv
-
 const Ajv = require("ajv")
-const ajv = new Ajv()
+const addFormats = require("ajv-formats");
 
+const ajv = new Ajv()
+addFormats(ajv);
 
 //crpyto modul-*
 
@@ -99,7 +101,6 @@ app.post("/zakazka/create", (req, res) => {
     const newZakazka = { id: crypto.randomBytes(16).toString("hex"), ...body };
 
     res.json(newZakazka)
-    res.send(newZakazka)
     zakazky.push(newZakazka)
 
 });
@@ -128,7 +129,7 @@ app.get("/zakazka/read", (req,res) => {
 });
 
 // Endpoint pre upravenie zakazky
-app.update("/zakazka/update", (req,res) => {
+app.post("/zakazka/update", (req,res) => {
 
     const body = req.body
     const id = req.body.id;
@@ -249,7 +250,7 @@ app.get("/faktura/read", (req,res) => {
 });
 
 // Endpoint pre upravenie faktury
-app.update("/faktura/update", (req,res) => {
+app.post("/faktura/update", (req,res) => {
 
     const body = req.body;
     const id = req.body.id;

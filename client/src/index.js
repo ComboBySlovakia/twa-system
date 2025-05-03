@@ -3,20 +3,21 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import './index.css';
 import App from './App';
-import Home from "./routes/Home"
+import Dashboard from "./routes/Dashboard"
 import Faktury from "./routes/Faktury"
 import Zakazky from "./routes/Zakazky"
 import reportWebVitals from './reportWebVitals';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(  <React.StrictMode>
         <BrowserRouter>
             <Routes>
                 <Route path="/" element={<App />}>
-                    {/* <Route index element={<Navigate to="/home" />} /> */}
-                    <Route path="home" element={<Home />}/>
-                    <Route path="students" element={<Faktury />}/>
-                    <Route path="classrooms" element={<Zakazky />}/>
+                    <Route index element={<Navigate to="/dashboard" />} />
+                    <Route path="dashboard" element={<Dashboard />}/>
+                    <Route path="faktury" element={<Faktury />}/>
+                    <Route path="zakazky" element={<Zakazky />}/>
                 </Route>
             </Routes>
         </BrowserRouter>
