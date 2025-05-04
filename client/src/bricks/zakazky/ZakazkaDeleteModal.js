@@ -2,22 +2,26 @@ import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-function ZakazkaDeleteModal({ show, handleClose, contractToDelete, setContracts }) {
+function ZakazkaDeleteModal({ show, handleClose, zakazkaToDelete, setZakazky }) {
     const handleDelete = () => {
-        fetch(`http://localhost:3000/contract/${contractToDelete.contractId}`, {
-            method: 'DELETE'
+        fetch("/zakazka/delete", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ contractId: zakazkaToDelete.contractId })
         })
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error("Failed to delete contract");
+                    throw new Error("Nepodarilo sa vymazať zákazku.");
                 }
-                setContracts((prevContracts) =>
-                    prevContracts.filter((c) => c.contractId !== contractToDelete.contractId)
+                setZakazky((prevZakazky) =>
+                    prevZakazky.filter((z) => z.contractId !== zakazkaToDelete.contractId)
                 );
                 handleClose();
             })
             .catch((error) => {
-                console.error("Delete error:", error);
+                console.error("Chyba pri mazaní:", error);
             });
     };
 
@@ -27,7 +31,8 @@ function ZakazkaDeleteModal({ show, handleClose, contractToDelete, setContracts 
                 <Modal.Title>Potvrdiť zmazanie</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                Naozaj chceš zmazať zákazku s ID: <strong>{contractToDelete?.contractId}</strong>?
+                Naozaj chceš zmazať zákazku s ID:{" "}
+                <strong>{zakazkaToDelete?.contractId}</strong>?
             </Modal.Body>
             <Modal.Footer>
                 <Button variant="secondary" onClick={handleClose}>

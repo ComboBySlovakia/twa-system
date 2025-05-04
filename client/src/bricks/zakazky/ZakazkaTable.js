@@ -2,6 +2,9 @@ import { useState } from "react";
 import Table from "react-bootstrap/Table";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
+import Form from "react-bootstrap/Form";
+import Alert from "react-bootstrap/Alert";
+import ZakazkaDeleteModal from "./ZakazkaDeleteModal";
 import { Icon } from "@mdi/react";
 import {
     mdiFileDocumentOutline,
@@ -17,17 +20,88 @@ import {
     mdiPauseCircle
 } from "@mdi/js";
 
-function ZakazkaTable({ zakazky, onShowDeleteModal }) {
+function ZakazkaTable({ zakazky, setZakazky, onShowDeleteModal, onUpdateZakazky }) {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedZakazka, setSelectedZakazka] = useState(null);
+    const [editableZakazka, setEditableZakazka] = useState(null);
+    const [saveError, setSaveError] = useState(null);
+    const [editMode, setEditMode] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [zakazkaToDelete, setZakazkaToDelete] = useState(null);
+
 
     const handleShowDetailModal = (zakazka) => {
         setSelectedZakazka(zakazka);
+        setEditableZakazka({ ...zakazka });
+        setEditMode(false);
+        setSaveError(null);
         setShowDetailModal(true);
     };
+
+    const handleShowEditModal = (zakazka) => {
+        setSelectedZakazka(zakazka);
+        setEditableZakazka({ ...zakazka });
+        setEditMode(true);
+        setSaveError(null);
+        setShowDetailModal(true);
+    };
+
     const handleCloseDetailModal = () => {
         setShowDetailModal(false);
         setSelectedZakazka(null);
+        setEditableZakazka(null);
+        setSaveError(null);
+        setEditMode(false);
+    };
+
+    const handleShowDeleteModal = (zakazka) => {
+        setZakazkaToDelete(zakazka);
+        setShowDeleteModal(true);
+    };
+
+    const handleCloseDeleteModal = () => {
+        setZakazkaToDelete(null);
+        setShowDeleteModal(false);
+    };
+
+
+    const handleChange = (field, value) => {
+        setEditableZakazka((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleTaskChange = (taskIndex, field, value) => {
+        const updatedTasks = [...editableZakazka.tasks];
+        updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], [field]: value };
+        setEditableZakazka((prev) => ({ ...prev, tasks: updatedTasks }));
+    };
+
+    const handleSaveChanges = async () => {
+        try {
+            const response = await fetch("/zakazka/update", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(editableZakazka)
+            });
+
+            if (!response.ok) {
+                throw new Error("Chyba pri ukladaní údajov.");
+            }
+
+            onUpdateZakazky(editableZakazka);
+
+            const updatedZakazkyResponse = await fetch("/zakazky/list");
+            if (!updatedZakazkyResponse.ok) {
+                throw new Error("Chyba pri získavaní zákaziek.");
+            }
+
+            const updatedZakazky = await updatedZakazkyResponse.json();
+            setZakazky(updatedZakazky);
+            handleCloseDetailModal();
+        } catch (error) {
+            setSaveError(error.message);
+        }
     };
 
     const statusIcon = {
@@ -45,6 +119,11 @@ function ZakazkaTable({ zakazky, onShowDeleteModal }) {
             hour: "2-digit",
             minute: "2-digit"
         });
+
+    const formatForInput = (dateStr) => {
+        const date = new Date(dateStr);
+        return isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 16);
+    };
 
     return (
         <>
@@ -74,22 +153,19 @@ function ZakazkaTable({ zakazky, onShowDeleteModal }) {
                         <td>{zakazka.budget} €</td>
                         <td>{zakazka.progress}%</td>
                         <td>
-                            <Icon
-                                path={statusIcon[zakazka.status]}
-                                size={1}
-                            /> {zakazka.status}
+                            <Icon path={statusIcon[zakazka.status]} size={1} /> {zakazka.status}
                         </td>
                         <td>{zakazka.tasks.length}</td>
                         <td>
-                            <Button
-                                variant="dark"
-                                onClick={() => handleShowDetailModal(zakazka)}
-                            >
+                            <Button variant="info" onClick={() => handleShowDetailModal(zakazka)}>
                                 Detail
+                            </Button>
+                            <Button variant="warning" onClick={() => handleShowEditModal(zakazka)} style={{ marginLeft: "10px" }}>
+                                Upraviť
                             </Button>
                             <Button
                                 variant="outline-danger"
-                                onClick={() => onShowDeleteModal(zakazka)}
+                                onClick={() => handleShowDeleteModal(zakazka)}
                                 style={{ marginLeft: "10px" }}
                             >
                                 Delete
@@ -100,40 +176,164 @@ function ZakazkaTable({ zakazky, onShowDeleteModal }) {
                 </tbody>
             </Table>
 
-            {/* Modal pre detaily zákazky */}
             <Modal show={showDetailModal} onHide={handleCloseDetailModal}>
                 <Modal.Header closeButton>
-                    <Modal.Title>Detail zákazky</Modal.Title>
+                    <Modal.Title>{editMode ? "Úprava zákazky" : "Detail zákazky"}</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    {selectedZakazka && (
-                        <>
-                            <p><strong>ID:</strong> {selectedZakazka.contractId}</p>
-                            <p><strong>Klient:</strong> {selectedZakazka.clientName}</p>
-                            <p><strong>Email:</strong> {selectedZakazka.clientEmail}</p>
-                            <p><strong>Dátum kontraktu:</strong> {formatDate(selectedZakazka.contractDate)}</p>
-                            <p><strong>Deadline:</strong> {formatDate(selectedZakazka.deadline)}</p>
-                            <p><strong>Rozpočet:</strong> {selectedZakazka.budget} €</p>
-                            <p><strong>Progres:</strong> {selectedZakazka.progress}%</p>
-                            <p><strong>Status:</strong> {selectedZakazka.status}</p>
+                    {editableZakazka && (
+                        <Form>
+                            <Form.Group>
+                                <Form.Label>Klient</Form.Label>
+                                <Form.Control
+                                    type="text"
+                                    value={editableZakazka.clientName}
+                                    readOnly={!editMode}
+                                    onChange={(e) => handleChange("clientName", e.target.value)}
+                                />
+                            </Form.Group>
+
+                            <Form.Group>
+                                <Form.Label>Email</Form.Label>
+                                <Form.Control
+                                    type="email"
+                                    value={editableZakazka.clientEmail}
+                                    readOnly={!editMode}
+                                    onChange={(e) => handleChange("clientEmail", e.target.value)}
+                                />
+                            </Form.Group>
+
+                            <Form.Group>
+                                <Form.Label>Dátum kontraktu</Form.Label>
+                                <Form.Control
+                                    type="datetime-local"
+                                    value={formatForInput(editableZakazka.contractDate)}
+                                    readOnly={!editMode}
+                                    onChange={(e) => handleChange("contractDate", e.target.value)}
+                                />
+                            </Form.Group>
+
+                            <Form.Group>
+                                <Form.Label>Deadline</Form.Label>
+                                <Form.Control
+                                    type="datetime-local"
+                                    value={formatForInput(editableZakazka.deadline)}
+                                    readOnly={!editMode}
+                                    onChange={(e) => handleChange("deadline", e.target.value)}
+                                />
+                            </Form.Group>
+
+                            <Form.Group>
+                                <Form.Label>Rozpočet (€)</Form.Label>
+                                <Form.Control
+                                    type="number"
+                                    value={editableZakazka.budget}
+                                    readOnly={!editMode}
+                                    onChange={(e) => handleChange("budget", e.target.value)}
+                                />
+                            </Form.Group>
+
+                            <Form.Group>
+                                <Form.Label>Progres (%)</Form.Label>
+                                <Form.Control
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={editableZakazka.progress}
+                                    readOnly={!editMode}
+                                    onChange={(e) => handleChange("progress", e.target.value)}
+                                />
+                            </Form.Group>
+
+                            <Form.Group>
+                                <Form.Label>Status</Form.Label>
+                                <Form.Select
+                                    value={editableZakazka.status}
+                                    disabled={!editMode}
+                                    onChange={(e) => handleChange("status", e.target.value)}
+                                >
+                                    <option value="draft">Návrh</option>
+                                    <option value="active">Aktívna</option>
+                                    <option value="completed">Dokončená</option>
+                                    <option value="cancelled">Zrušená</option>
+                                </Form.Select>
+                            </Form.Group>
+
                             <hr />
-                            <h6>Úlohy:</h6>
-                            {selectedZakazka.tasks.map((task, index) => (
-                                <div key={task.taskId}>
-                                    <strong>Úloha {index + 1}:</strong> {task.description}<br />
-                                    <em>Priradené:</em> {task.assignedTo}, <em>Status:</em> {task.status}
+                            <h5>Úlohy</h5>
+                            {editableZakazka.tasks.map((task, index) => (
+                                <div key={index}>
+                                    <Form.Group>
+                                        <Form.Label>Úloha {index + 1} - ID</Form.Label>
+                                        <Form.Control
+                                            type="text"
+                                            value={task.taskId}
+                                            readOnly={!editMode}
+                                            onChange={(e) => handleTaskChange(index, "taskId", e.target.value)}
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group>
+                                        <Form.Label>Úloha {index + 1} - Názov</Form.Label>
+                                        <Form.Control
+                                            type="text"
+                                            value={task.name}
+                                            readOnly={!editMode}
+                                            onChange={(e) => handleTaskChange(index, "name", e.target.value)}
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group>
+                                        <Form.Label>Úloha {index + 1} - Popis</Form.Label>
+                                        <Form.Control
+                                            as="textarea"
+                                            rows={3}
+                                            value={task.description}
+                                            readOnly={!editMode}
+                                            onChange={(e) => handleTaskChange(index, "description", e.target.value)}
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group>
+                                        <Form.Label>Úloha {index + 1} - Status</Form.Label>
+                                        <Form.Select
+                                            value={task.status}
+                                            disabled={!editMode}
+                                            onChange={(e) => handleTaskChange(index, "status", e.target.value)}
+                                        >
+                                            <option value="pending">Čaká na vykonanie</option>
+                                            <option value="in-progress">Prebieha</option>
+                                            <option value="completed">Dokončená</option>
+                                        </Form.Select>
+                                    </Form.Group>
+
                                     <hr />
                                 </div>
                             ))}
-                        </>
+
+                            {saveError && <Alert variant="danger" className="mt-3">{saveError}</Alert>}
+                        </Form>
                     )}
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={handleCloseDetailModal}>
                         Zatvoriť
                     </Button>
+                    {editMode && (
+                        <Button variant="primary" onClick={handleSaveChanges}>
+                            Uložiť zmeny
+                        </Button>
+                    )}
                 </Modal.Footer>
             </Modal>
+
+            <ZakazkaDeleteModal
+                show={showDeleteModal}
+                handleClose={handleCloseDeleteModal}
+                zakazkaToDelete={zakazkaToDelete}
+                setZakazky={setZakazky}
+            />
+
         </>
     );
 }

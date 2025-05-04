@@ -15,6 +15,47 @@ function ZakazkaMain (){
     const [showAddModal, setShowAddModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+    const onUpdateZakazky = async (updatedZakazka) => {
+        console.log("Aktualizujem zákazku:", updatedZakazka);  // Debugging
+
+        // Voláme backend na uloženie zmeny
+        const response = await fetch('/zakazka/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updatedZakazka)
+        });
+
+        if (!response.ok) {
+            console.error("Chyba pri ukladaní zákazky.");
+            return;
+        }
+
+        // Po úspešnej aktualizácii zavoláme API na získanie všetkých zákaziek
+        const updatedZakazkyResponse = await fetch('/zakazky/list');
+        if (!updatedZakazkyResponse.ok) {
+            console.error("Chyba pri získavaní zákaziek.");
+            return;
+        }
+
+        const updatedZakazky = await updatedZakazkyResponse.json();
+
+        // Použijeme callback na správne nastavenie nových zákaziek
+        setZakazky((prevZakazky) => {
+            // Nahradíme starú zákazku tou aktualizovanou
+            return prevZakazky.map((zakazka) =>
+                zakazka.contractId === updatedZakazka.contractId ? updatedZakazka : zakazka
+            );
+        });
+
+        console.log("Nový stav zákaziek:", updatedZakazky); // Debugging
+    };
+
+
+
+
+
 
     useEffect(() => {
         fetch('http://localhost:3000/zakazky/list', {
@@ -66,7 +107,7 @@ function ZakazkaMain (){
             </div>
 
             {isTableView ? (
-                <ZakazkaTable zakazky={zakazky}/>
+                <ZakazkaTable zakazky={zakazky} setZakazky={setZakazky} onUpdateZakazky={onUpdateZakazky}/>
             ) : (
 
                 <Row xs={1} md={2} className="g-4">
