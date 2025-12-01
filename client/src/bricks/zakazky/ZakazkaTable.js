@@ -66,14 +66,23 @@ function ZakazkaTable({ zakazky, setZakazky, onShowDeleteModal, onUpdateZakazky 
 
 
     const handleChange = (field, value) => {
-        setEditableZakazka((prev) => ({ ...prev, [field]: value }));
+        // Aktualizuj len konkrétny field vo vybranej zakázke
+        setEditableZakazka((prev) => ({
+            ...prev,
+            [field]: value
+        }));
     };
 
     const handleTaskChange = (taskIndex, field, value) => {
-        const updatedTasks = [...editableZakazka.tasks];
-        updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], [field]: value };
-        setEditableZakazka((prev) => ({ ...prev, tasks: updatedTasks }));
+        // Správne aktualizuj úlohy v rámci zakázky
+        setEditableZakazka((prev) => {
+            const updatedTasks = [...prev.tasks];
+            updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], [field]: value };
+            return { ...prev, tasks: updatedTasks };
+        });
     };
+
+
 
     const handleSaveChanges = async () => {
         try {
@@ -89,20 +98,22 @@ function ZakazkaTable({ zakazky, setZakazky, onShowDeleteModal, onUpdateZakazky 
                 throw new Error("Chyba pri ukladaní údajov.");
             }
 
-            onUpdateZakazky(editableZakazka);
+            // Uloženie konkrétnej zakázky
+            const updatedZakazka = await response.json();
 
-            const updatedZakazkyResponse = await fetch("/zakazky/list");
-            if (!updatedZakazkyResponse.ok) {
-                throw new Error("Chyba pri získavaní zákaziek.");
-            }
+            // Upravíme len túto zakázku v stave, nie všetky
+            setZakazky((prevZakazky) =>
+                prevZakazky.map((zakazka) =>
+                    zakazka.contractId === updatedZakazka.contractId ? updatedZakazka : zakazka
+                )
+            );
 
-            const updatedZakazky = await updatedZakazkyResponse.json();
-            setZakazky(updatedZakazky);
             handleCloseDetailModal();
         } catch (error) {
             setSaveError(error.message);
         }
     };
+
 
     const statusIcon = {
         draft: mdiPauseCircle,
@@ -144,7 +155,7 @@ function ZakazkaTable({ zakazky, setZakazky, onShowDeleteModal, onUpdateZakazky 
                 </thead>
                 <tbody>
                 {zakazky.map((zakazka) => (
-                    <tr key={zakazka.contractId}>
+                    <tr key={zakazka.id}>
                         <td>{zakazka.contractId}</td>
                         <td>{zakazka.clientName}</td>
                         <td>{zakazka.clientEmail}</td>
@@ -227,7 +238,7 @@ function ZakazkaTable({ zakazky, setZakazky, onShowDeleteModal, onUpdateZakazky 
                                 <Form.Label>Rozpočet (€)</Form.Label>
                                 <Form.Control
                                     type="number"
-                                    value={editableZakazka.budget}
+                                    value={editableZakazka.budget || ""}
                                     readOnly={!editMode}
                                     onChange={(e) => handleChange("budget", e.target.value)}
                                 />

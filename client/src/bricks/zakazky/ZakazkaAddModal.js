@@ -8,6 +8,7 @@ function ZakazkaAddModal({ show, handleClose, setZakazky }) {
     // Stav pre zákazku
     const [newZakazka, setNewZakazka] = useState({
         contractId: "",
+        clientId: "", // Pridávame clientId pre firmu
         clientName: "",
         clientEmail: "",
         contractDate: "",
@@ -15,7 +16,8 @@ function ZakazkaAddModal({ show, handleClose, setZakazky }) {
         tasks: [],
         budget: 0,
         progress: 0,
-        status: "draft"
+        status: "draft",
+        isCompany: false, // Nový stav, ktorý určuje, či je klient firma
     });
 
     // Stav pre novú úlohu
@@ -75,13 +77,13 @@ function ZakazkaAddModal({ show, handleClose, setZakazky }) {
             .catch((error) => {
                 console.error("Create error:", error);
             });
-
     };
 
     // Resetovať formulár po pridaní zákazky
     const resetForm = () => {
         setNewZakazka({
             contractId: "",
+            clientId: "", // Resetujeme clientId
             clientName: "",
             clientEmail: "",
             contractDate: "",
@@ -89,7 +91,8 @@ function ZakazkaAddModal({ show, handleClose, setZakazky }) {
             tasks: [],
             budget: 0,
             progress: 0,
-            status: "draft"
+            status: "draft",
+            isCompany: false, // Resetujeme aj isCompany
         });
     };
 
@@ -106,16 +109,51 @@ function ZakazkaAddModal({ show, handleClose, setZakazky }) {
                         <Form.Control type="text" value={newZakazka.contractId}
                                       onChange={(e) => setNewZakazka({ ...newZakazka, contractId: e.target.value })} />
                     </Form.Group>
+
+                    {/* Výber, či ide o firmu alebo súkromnú osobu */}
                     <Form.Group className="mb-3">
-                        <Form.Label>Meno klienta</Form.Label>
-                        <Form.Control type="text" value={newZakazka.clientName}
-                                      onChange={(e) => setNewZakazka({ ...newZakazka, clientName: e.target.value })} />
+                        <Form.Label>Typ klienta</Form.Label>
+                        <Form.Check
+                            type="radio"
+                            label="Firma"
+                            name="clientType"
+                            checked={newZakazka.isCompany}
+                            onChange={() => setNewZakazka({ ...newZakazka, isCompany: true })}
+                        />
+                        <Form.Check
+                            type="radio"
+                            label="Súkromná osoba"
+                            name="clientType"
+                            checked={!newZakazka.isCompany}
+                            onChange={() => setNewZakazka({ ...newZakazka, isCompany: false })}
+                        />
                     </Form.Group>
-                    <Form.Group className="mb-3">
-                        <Form.Label>Email klienta</Form.Label>
-                        <Form.Control type="email" value={newZakazka.clientEmail}
-                                      onChange={(e) => setNewZakazka({ ...newZakazka, clientEmail: e.target.value })} />
-                    </Form.Group>
+
+                    {/* Polia pre klienta */}
+                    {newZakazka.isCompany ? (
+                        <>
+                            <Form.Group className="mb-3">
+                                <Form.Label>ID klienta (Firma)</Form.Label>
+                                <Form.Control type="text" value={newZakazka.clientId}
+                                              onChange={(e) => setNewZakazka({ ...newZakazka, clientId: e.target.value })} />
+                            </Form.Group>
+                        </>
+                    ) : (
+                        <>
+                            <Form.Group className="mb-3">
+                                <Form.Label>Klient (Súkromná osoba)</Form.Label>
+                                <Form.Control type="text" placeholder="Zadajte meno"
+                                              value={newZakazka.clientName}
+                                              onChange={(e) => setNewZakazka({ ...newZakazka, clientName: e.target.value })} />
+                            </Form.Group>
+                            <Form.Group className="mb-3">
+                                <Form.Label>Email klienta</Form.Label>
+                                <Form.Control type="email" value={newZakazka.clientEmail}
+                                              onChange={(e) => setNewZakazka({ ...newZakazka, clientEmail: e.target.value })} />
+                            </Form.Group>
+                        </>
+                    )}
+
                     <Form.Group className="mb-3">
                         <Form.Label>Dátum zákazky</Form.Label>
                         <Form.Control
@@ -224,7 +262,7 @@ function ZakazkaAddModal({ show, handleClose, setZakazky }) {
             </Modal.Body>
             <Modal.Footer>
                 <Button variant="secondary" onClick={handleClose}>Zavrieť</Button>
-                <Button variant="primary" onClick={addZakazka}>Uložiť</Button>
+                <Button variant="primary" onClick={addZakazka}>Pridať zákazku</Button>
             </Modal.Footer>
         </Modal>
     );

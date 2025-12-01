@@ -1,66 +1,66 @@
 // načítanie modulu express
+const express = require("express");
 
-const express=  require("express");
-
-//nacitanie modulu ms databazy
-const sql = require('mssql')
+// nacitanie modulu PostgreSQL
+const { Client } = require('pg');
 
 // modul ajv
-const Ajv = require("ajv")
+const Ajv = require("ajv");
 const addFormats = require("ajv-formats");
 
-const ajv = new Ajv()
+const ajv = new Ajv();
 addFormats(ajv);
 
-//crpyto modul-*
-
+// crypto modul
 const crypto = require("crypto");
 
 const app = express();
 
 // definovanie portu
-
 const port = 8000;
 
 // definovanie cesty
 const path = require('path');
-const {reset} = require("nodemon");
+const { reset } = require("nodemon");
 
-(async () => {
-    try {
-        // make sure that any items are correctly URL encoded in the connection string
-        await sql.connect('Server=localhost,1433;Database=database;User Id=username;Password=password;Encrypt=true')
-        const result = await sql.query`select * from mytable where id = ${value}`
-        console.dir(result)
-    } catch (err) {
-        // ... error checks
-    }
-})()
+// pripojenie k PostgreSQL databáze
+const client = new Client({
+    user: 'postgres',
+    host: 'localhost',
+    database: 'postgres',
+    password: 'spsepo',
+    port: 5432,
+});
 
-//pole zakazok
+client.connect()
+    .then(() => console.log("Connected to PostgreSQL"))
+    .catch(err => console.error("Connection error", err.stack));
+
+// pole zakazok
 const zakazky = [];
-//pole faktur
+// pole faktur
 const faktury = [];
 
 // podpora pre json
 app.use(express.json());
 
-//podpora pre application /x-www-form-urlencoded
-app.use(express.urlencoded({extended: true}));
+// podpora pre application/x-www-form-urlencoded
+app.use(express.urlencoded({ extended: true }));
 
 // Zakazkova cast
 
 // Endpoint pre vytvorenie zakazky
 app.post("/zakazka/create", (req, res) => {
-
-    const body = req.body
+    const body = req.body;
 
     const schema = {
         type: "object",
         properties: {
             contractId: { type: "string", description: "Unique identifier for the contract" },
+            clientId: { type: "string", description: "ID klienta (firma)" },
             clientName: { type: "string", description: "Name of the client" },
             clientEmail: { type: "string", format: "email", description: "Email address of the client" },
+            isCompany: { type: "boolean", description: "Indicates if client is a company" },
             contractDate: { type: "string", format: "date-time", description: "Date when the contract was created" },
             deadline: { type: "string", format: "date-time", description: "Deadline for the completion of the contract" },
             tasks: {
@@ -85,135 +85,10 @@ app.post("/zakazka/create", (req, res) => {
         additionalProperties: false
     };
 
-
     const validate = ajv.compile(schema);
     const valid = validate(body);
 
-    if(!valid) {
-        res.status(400).json({
-            code: "dtoIn Invalid",
-            message: "Input data are invalid",
-            errros: validate.errors,
-        });
-        return;
-    }
-
-    const newZakazka = { id: crypto.randomBytes(16).toString("hex"), ...body };
-
-    res.json(newZakazka)
-    zakazky.push(newZakazka)
-
-});
-
-// Endpoint pre poslanie vsetkych zakazok
-app.get("/zakazky/list", (req,res) => {
-    res.send(zakazky);
-});
-
-// Endpoint pre precitanie jednej zakazky
-app.get("/zakazka/read", (req,res) => {
-
-    const id = req.query.id;
-    const zakazkaById = zakazky.find((zakazka) => zakazka.id === id);
-
-    if (!zakazkaById) {
-        res.status(400).json({
-            code: "contract_not_found",
-            message: `Zakazka: ${id} neexistuje!`,
-        });
-        return;
-    }
-
-    res.json(zakazkaById);
-
-});
-
-// Endpoint pre upravenie zakazky
-app.post("/zakazka/update", (req,res) => {
-
-    const body = req.body
-    const id = req.body.id;
-    const zakazkaIndex = zakazky.find((zakazka) => zakazka.id === id);
-
-    if (zakazkaIndex -1) {
-
-        res.status(400).json({
-            code: "contract_not_found",
-            message:`Zakazka: ${id} neexistuje !`,
-        });
-    }
-
-    const tempZakazka = zakazky[zakazkaIndex];
-    zakazky[zakazkaIndex] = {
-        ...tempZakazka,
-        ...body,
-    }
-
-    res.send(zakazky[zakazkaIndex])
-
-});
-
-// Endpoint pre odstranenie zakazky
-app.post("/zakazka/delete", (req,res) => {
-
-    const id = req.body.id;
-    const zakazkaIndex = zakazky.find((zakazka) => zakazka.id === id);
-
-    if (zakazkaIndex -1) {
-
-        res.status(400).json({
-            code: "contract_not_found",
-            message:`Zakazka: ${id} neexistuje !`,
-        });
-    }
-    zakazky.splice(zakazkaIndex, 1)
-    res.send({});
-
-});
-
-// Fakturacna cast
-
-
-// Endpoint pre vytvorenie faktury
-app.post("/faktura/create", (req, res) => {
-
-    const body = req.body
-
-    const schema = {
-        type: "object",
-        properties: {
-            invoiceId: { type: "string", description: "Unique identifier for the invoice" },
-            issueDate: { type: "string", format: "date-time", description: "Date when the invoice was issued" },
-            dueDate: { type: "string", format: "date-time", description: "Deadline for payment of the invoice" },
-            clientName: { type: "string", description: "Name of the client being billed" },
-            clientEmail: { type: "string", format: "email", description: "Email address of the client" },
-            items: {
-                type: "array",
-                items: {
-                    type: "object",
-                    properties: {
-                        itemId: { type: "string", description: "Unique identifier for the item or service" },
-                        description: { type: "string", description: "Description of the item or service" },
-                        quantity: { type: "integer", description: "Quantity of the item or service" },
-                        unitPrice: { type: "number", description: "Price per unit of the item or service" },
-                        totalPrice: { type: "number", description: "Total price for the item or service (quantity * unitPrice)" }
-                    },
-                    required: ["itemId", "description", "quantity", "unitPrice", "totalPrice"]
-                },
-                description: "List of items or services included in the invoice"
-            },
-            totalAmount: { type: "number", description: "Total amount payable for the invoice" },
-            paymentStatus: { type: "string", enum: ["pending", "paid", "overdue"], description: "Payment status of the invoice" },
-            notes: { type: "string", description: "Additional notes or terms related to the invoice" }
-        },
-        required: ["invoiceId", "issueDate", "dueDate", "clientName", "items", "totalAmount", "paymentStatus"],
-        additionalProperties: false
-    };
-
-    const validate = ajv.compile(schema);
-    const valid = validate(body);
-
-    if(!valid) {
+    if (!valid) {
         res.status(400).json({
             code: "dtoIn Invalid",
             message: "Input data are invalid",
@@ -222,85 +97,323 @@ app.post("/faktura/create", (req, res) => {
         return;
     }
 
+    // Ak je klient firma, zabezpečíme clientId, ak nie, nastaviť clientId na null
+    const newZakazka = {
+        id: crypto.randomBytes(16).toString("hex"),
+        clientId: body.clientId && body.clientId !== "" ? body.clientId : null, // Ak clientId je prázdny, nastav ho na null
+        isCompany: body.isCompany !== undefined ? body.isCompany : null, // Ak isCompany nie je zadané, nastav ho na null
+        ...body
+    };
 
+    if (!body.isCompany) {
+        body.clientId = null;  // Ak ide o súkromnú osobu, nastavíme clientId na NULL
+    }
+
+// Zabezpečíme, že nie je prázdny reťazec pre UUID
+    if (body.clientId === "") {
+        body.clientId = null;  // Nastavíme na NULL, ak je prázdny reťazec
+    }
+
+    // Pridanie zakazky do databázy
+    client.query('INSERT INTO zakazky(id, contractId, clientId, clientName, clientEmail, contractDate, deadline, tasks, budget, progress, status) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)', [
+        newZakazka.id, newZakazka.contractId, body.clientId, newZakazka.clientName, newZakazka.clientEmail, newZakazka.contractDate, newZakazka.deadline, JSON.stringify(newZakazka.tasks), newZakazka.budget, newZakazka.progress, newZakazka.status
+    ])
+        .then(() => {
+            res.json(newZakazka);
+        })
+        .catch(err => {
+            console.error(err);
+            res.status(500).json({ message: "Database error" });
+        });
 });
 
-// Endpoint pre vypisanie faktur
-app.get("faktury/list", (req,res) => {
-   res.send(faktury);
+
+// Endpoint pre poslanie vsetkych zakazok
+app.get("/zakazky/list", (req, res) => {
+    client.query('SELECT * FROM zakazky')
+        .then(result => {
+            res.send(result.rows);
+        })
+        .catch(err => {
+            console.error(err);
+            res.status(500).json({ message: "Database error" });
+        });
 });
 
-// Endpoint pre precitanie jednej faktury
-app.get("/faktura/read", (req,res) => {
+// Endpoint pre precitanie jednej zakazky
+app.get("/zakazka/read", (req, res) => {
+    const id = req.query.id;
+    client.query('SELECT * FROM zakazky WHERE id = $1', [id])
+        .then(result => {
+            if (result.rows.length === 0) {
+                res.status(400).json({
+                    code: "contract_not_found",
+                    message: `Zakazka: ${id} neexistuje!`,
+                });
+                return;
+            }
+            res.json(result.rows[0]);
+        })
+        .catch(err => {
+            console.error(err);
+            res.status(500).json({ message: "Database error" });
+        });
+});
 
+app.post("/zakazka/update", (req, res) => {
+    const body = req.body;
+    const id = body.id;
+
+    if (!id) {
+        return res.status(400).json({
+            code: "missing_id",
+            message: "ID zakázky je povinné!"
+        });
+    }
+
+    // Načítame aktuálnu zakázku
+    client.query('SELECT * FROM zakazky WHERE id = $1', [id])
+        .then(result => {
+            if (result.rows.length === 0) {
+                return res.status(400).json({
+                    code: "contract_not_found",
+                    message: `Zakázka s ID ${id} neexistuje!`,
+                });
+            }
+
+            const tempZakazka = result.rows[0];
+
+            // Pripravíme hodnoty na update
+            const updatedContractId = body.contractId && body.contractId !== tempZakazka.contractid ? body.contractId : tempZakazka.contractid;
+            const updatedClientName = body.clientName && body.clientName !== tempZakazka.clientname ? body.clientName : tempZakazka.clientname;
+            const updatedClientEmail = body.clientEmail && body.clientEmail !== tempZakazka.clientemail ? body.clientEmail : tempZakazka.clientemail;
+            const updatedContractDate = body.contractDate && body.contractDate !== tempZakazka.contractdate ? body.contractDate : tempZakazka.contractdate;
+            const updatedDeadline = body.deadline && body.deadline !== tempZakazka.deadline ? body.deadline : tempZakazka.deadline;
+            const updatedTasks = body.tasks ? JSON.stringify(body.tasks) : tempZakazka.tasks;
+            const updatedBudget = body.budget !== undefined ? body.budget : tempZakazka.budget;
+            const updatedProgress = body.progress !== undefined ? body.progress : tempZakazka.progress;
+            const updatedStatus = body.status && body.status !== tempZakazka.status ? body.status : tempZakazka.status;
+
+            // Aktualizácia v databáze
+            const query = `
+                UPDATE zakazky
+                SET 
+                    contractId = $1, 
+                    clientName = $2, 
+                    clientEmail = $3, 
+                    contractDate = $4, 
+                    deadline = $5, 
+                    tasks = $6, 
+                    budget = $7, 
+                    progress = $8, 
+                    status = $9
+                WHERE id = $10
+            `;
+            const values = [
+                updatedContractId,
+                updatedClientName,
+                updatedClientEmail,
+                updatedContractDate,
+                updatedDeadline,
+                updatedTasks,
+                updatedBudget,
+                updatedProgress,
+                updatedStatus,
+                id
+            ];
+
+            client.query(query, values)
+                .then(() => {
+                    res.json({ id, ...body });
+                })
+                .catch(err => {
+                    console.error(err);
+                    res.status(500).json({ message: "Database error" });
+                });
+        })
+        .catch(err => {
+            console.error(err);
+            res.status(500).json({ message: "Database error" });
+        });
+});
+
+
+
+// Endpoint pre odstranenie zakazky
+app.post("/zakazka/delete", (req, res) => {
     const id = req.body.id;
-    const fakutraById = faktury.find((faktura) => faktura.id === id);
+    client.query('DELETE FROM zakazky WHERE id = $1', [id])
+        .then(() => {
+            res.send({});
+        })
+        .catch(err => {
+            console.error(err);
+            res.status(500).json({ message: "Database error" });
+        });
+});
 
-    if(!fakutraById) {
+// Fakturacna cast
 
+// Endpoint pre vytvorenie faktury
+app.post("/faktura/create", (req, res) => {
+    const body = req.body;
+
+    const schema = {
+        type: "object",
+        properties: {
+            invoiceId: { type: "string" },
+            issueDate: { type: "string", format: "date-time" },
+            dueDate: { type: "string", format: "date-time" },
+            clientName: { type: "string" },
+            clientEmail: { type: "string", format: "email" },
+            items: {
+                type: "array",
+                items: {
+                    type: "object",
+                    properties: {
+                        itemId: { type: "string" },
+                        description: { type: "string" },
+                        quantity: { type: "integer" },
+                        unitPrice: { type: "number" },
+                        totalPrice: { type: "number" }
+                    },
+                    required: ["itemId", "description", "quantity", "unitPrice", "totalPrice"]
+                }
+            },
+            totalAmount: { type: "number" },
+            paymentStatus: { type: "string", enum: ["pending", "paid", "overdue"] },
+            notes: { type: "string" }
+        },
+        required: ["invoiceId", "issueDate", "dueDate", "clientName", "items", "totalAmount", "paymentStatus"],
+        additionalProperties: false
+    };
+
+    const validate = ajv.compile(schema);
+    const valid = validate(body);
+
+    if (!valid) {
         res.status(400).json({
-            code: "invoice_not_found",
-            message: `Faktura: ${id} neexistuje!`,
+            code: "dtoIn Invalid",
+            message: "Input data are invalid",
+            errors: validate.errors,
         });
         return;
     }
 
-    res.json(fakutraById)
+    const newFaktura = { id: crypto.randomUUID(), ...body };
 
+    client.query(
+        'INSERT INTO faktury (id, invoiceId, issueDate, dueDate, clientName, clientEmail, items, totalAmount, paymentStatus, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+        [
+            newFaktura.id,
+            newFaktura.invoiceId,
+            newFaktura.issueDate,
+            newFaktura.dueDate,
+            newFaktura.clientName,
+            newFaktura.clientEmail,
+            JSON.stringify(newFaktura.items),
+            newFaktura.totalAmount,
+            newFaktura.paymentStatus,
+            newFaktura.notes || null
+        ]
+    )
+        .then(() => {
+            res.json(newFaktura);
+        })
+        .catch(err => {
+            console.error(err);
+            res.status(500).json({ message: "Database error" });
+        });
+});
+
+
+// Endpoint pre vypisanie faktur
+app.get("/faktury/list", (req, res) => {
+    client.query('SELECT * FROM faktury')
+        .then(result => {
+            res.send(result.rows);
+        })
+        .catch(err => {
+            console.error(err);
+            res.status(500).json({ message: "Database error" });
+        });
+});
+
+// Endpoint pre precitanie jednej faktury
+app.get("/faktura/read", (req, res) => {
+    const id = req.query.id;
+    client.query('SELECT * FROM faktury WHERE id = $1', [id])
+        .then(result => {
+            if (result.rows.length === 0) {
+                res.status(400).json({
+                    code: "invoice_not_found",
+                    message: `Faktura: ${id} neexistuje!`,
+                });
+                return;
+            }
+            res.json(result.rows[0]);
+        })
+        .catch(err => {
+            console.error(err);
+            res.status(500).json({ message: "Database error" });
+        });
 });
 
 // Endpoint pre upravenie faktury
-app.post("/faktura/update", (req,res) => {
-
+app.post("/faktura/update", (req, res) => {
     const body = req.body;
     const id = req.body.id;
-    const fakturaIndex = faktury.find((faktura) => faktura.id === id);
+    client.query('SELECT * FROM faktury WHERE id = $1', [id])
+        .then(result => {
+            if (result.rows.length === 0) {
+                res.status(400).json({
+                    code: "invoice_not_found",
+                    message: `Faktura: ${id} neexistuje!`,
+                });
+                return;
+            }
 
-    if(!fakturaIndex) {
-
-        res.status(400).json({
-           code: "invoice_not_found",
-           message: `Faktura: ${id} neexistuje!`,
+            const tempFaktura = result.rows[0];
+            client.query('UPDATE faktury SET invoiceId = $1, issueDate = $2, dueDate = $3, clientName = $4, clientEmail = $5, items = $6, totalAmount = $7, paymentStatus = $8, notes = $9 WHERE id = $10', [
+                body.invoiceId || tempFaktura.invoiceid,
+                body.issueDate || tempFaktura.issuedate,
+                body.dueDate || tempFaktura.duedate,
+                body.clientName || tempFaktura.clientname,
+                body.clientEmail || tempFaktura.clientemail,
+                JSON.stringify(body.items || tempFaktura.items),
+                body.totalAmount || tempFaktura.totalamount,
+                body.paymentStatus || tempFaktura.paymentstatus,
+                body.notes || tempFaktura.notes,
+                id
+            ])
+                .then(() => {
+                    res.json({ id, ...body });
+                })
+                .catch(err => {
+                    console.error(err);
+                    res.status(500).json({ message: "Database error" });
+                });
+        })
+        .catch(err => {
+            console.error(err);
+            res.status(500).json({ message: "Database error" });
         });
-
-    }
-
-    const tempFaktura = faktury[fakturaIndex];
-
-    faktury[fakturaIndex] = {
-    ...tempFaktura,
-    ...body,
-
-
-    }
-
-    res.json(faktury[fakturaIndex]);
-
 });
 
 // Endpoint pre odstranenie faktury
-app.post("/faktura/delete", (req,res) => {
-
+app.post("/faktura/delete", (req, res) => {
     const id = req.body.id;
-    const fakutraIndex = faktury.find((faktura) => faktura.id === id);
-
-    if(!fakutraIndex){
-
-        res.status(400).json({
-            code: "invoice_not_found",
-            message: `Faktura: ${id} neexistuje!`,
+    client.query('DELETE FROM faktury WHERE id = $1', [id])
+        .then(() => {
+            res.send({});
         })
-    }
-
-    faktury.splice(fakutraIndex, 1);
-    res.send({});
-
+        .catch(err => {
+            console.error(err);
+            res.status(500).json({ message: "Database error" });
+        });
 });
-
 
 // nastavenie portu, na ktorom má bežať HTTP server
 app.listen(port, () => {
-
     console.log(`Example app listening at http://localhost:${port}`);
-
-})
+});

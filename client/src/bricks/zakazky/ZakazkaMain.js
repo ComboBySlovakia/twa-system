@@ -16,15 +16,12 @@ function ZakazkaMain (){
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     const onUpdateZakazky = async (updatedZakazka) => {
-        console.log("Aktualizujem zákazku:", updatedZakazka);  // Debugging
+        console.log("Aktualizujem zákazku:", updatedZakazka);
 
-        // Voláme backend na uloženie zmeny
         const response = await fetch('/zakazka/update', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updatedZakazka)
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedZakazka),
         });
 
         if (!response.ok) {
@@ -32,24 +29,20 @@ function ZakazkaMain (){
             return;
         }
 
-        // Po úspešnej aktualizácii zavoláme API na získanie všetkých zákaziek
+        // Stiahni celý nový zoznam zo servera
         const updatedZakazkyResponse = await fetch('/zakazky/list');
         if (!updatedZakazkyResponse.ok) {
             console.error("Chyba pri získavaní zákaziek.");
             return;
         }
+        
 
         const updatedZakazky = await updatedZakazkyResponse.json();
 
-        // Použijeme callback na správne nastavenie nových zákaziek
-        setZakazky((prevZakazky) => {
-            // Nahradíme starú zákazku tou aktualizovanou
-            return prevZakazky.map((zakazka) =>
-                zakazka.contractId === updatedZakazka.contractId ? updatedZakazka : zakazka
-            );
-        });
+        // Tu ho správne nastavíš
+        setZakazky(updatedZakazky);
 
-        console.log("Nový stav zákaziek:", updatedZakazky); // Debugging
+        console.log("Nový stav zákaziek:", updatedZakazky);
     };
 
 

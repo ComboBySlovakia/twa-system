@@ -4,19 +4,24 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 function ZakazkaDeleteModal({ show, handleClose, zakazkaToDelete, setZakazky }) {
     const handleDelete = () => {
+        if (!zakazkaToDelete.id) {
+            console.error("No ID found for deletion.");
+            return;
+        }
+
         fetch("/zakazka/delete", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ contractId: zakazkaToDelete.contractId })
+            body: JSON.stringify({ id: zakazkaToDelete.id })
         })
             .then((response) => {
                 if (!response.ok) {
                     throw new Error("Nepodarilo sa vymazať zákazku.");
                 }
                 setZakazky((prevZakazky) =>
-                    prevZakazky.filter((z) => z.contractId !== zakazkaToDelete.contractId)
+                    prevZakazky.filter((z) => z.id !== zakazkaToDelete.id)
                 );
                 handleClose();
             })
@@ -25,6 +30,7 @@ function ZakazkaDeleteModal({ show, handleClose, zakazkaToDelete, setZakazky }) 
             });
     };
 
+
     return (
         <Modal show={show} onHide={handleClose}>
             <Modal.Header closeButton>
@@ -32,7 +38,7 @@ function ZakazkaDeleteModal({ show, handleClose, zakazkaToDelete, setZakazky }) 
             </Modal.Header>
             <Modal.Body>
                 Naozaj chceš zmazať zákazku s ID:{" "}
-                <strong>{zakazkaToDelete?.contractId}</strong>?
+                <strong>{zakazkaToDelete?.id}</strong>?
             </Modal.Body>
             <Modal.Footer>
                 <Button variant="secondary" onClick={handleClose}>
